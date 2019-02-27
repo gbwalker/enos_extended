@@ -1,7 +1,5 @@
 ---
-title: "Causal Effect of Intergroup Contact on Exclusionary Attitudes Extension"
-# author: "Gabe Walker"
-# date: "February 26, 2019"
+title: "Extension: Causal Effect of Intergroup Contact on Exclusionary Attitudes"
 output: pdf_document
 ---
 
@@ -11,9 +9,18 @@ library(tidyverse)
 library(janitor)
 library(lme4)
 library(broom)
+library(RColorBrewer)
+library(kableExtra)
+library(extrafont)
 ```
 
-```{r data, echo = FALSE, message = FALSE, error = FALSE}
+\begin{flushright}
+Gabe Walker
+
+February 27, 2018
+\end{flushright}
+
+```{r data, echo = FALSE, message = FALSE, error = FALSE, warning = FALSE}
 ### This section reads in and cleans the primary results data.
 
 # Read in the full data and clean the names.
@@ -33,6 +40,12 @@ df <- read_csv("pnas_data.csv") %>%
          dif_remain = remain_y - remain_x,
          dif_english = englishlan_y - englishlan_x) %>% 
 
+# Change time_treatment to a better-looking factor.
+  mutate(time_treatment = case_when(
+    time_treatment == "a" ~ "Three-day treatment",
+    time_treatment == "b" ~ "Ten-day treatment"
+  )) %>% 
+
 # Create a binary outcome variable if overall the individual
 # was more conservative after.
   mutate(dif = case_when(
@@ -46,7 +59,7 @@ df <- read_csv("pnas_data.csv") %>%
   filter(! is.na(dif_num))
 ```
 
-```{r lme, echo = FALSE, message = FALSE, error = FALSE}
+```{r models, echo = FALSE, message = FALSE, error = FALSE}
 ### This section makes logistic and lme models.
 
 # Logistic regressions for the effect of treatment on the overall binary
@@ -65,7 +78,55 @@ m4 <- glm(dif ~ treatment + time_treatment + line_y + obama_voter + romney_voter
 m5 <- lmer(dif ~ treatment + (1 | treated_unit), df)
 # m5 plus time fixed effects.
 m6 <- lmer(dif ~ treatment + time_treatment + (1 | treated_unit), df)
+# m6 but using treatment as a fixed factor within random units (varying slopes).
+m7 <- lmer(dif ~ treatment + time_treatment + (treatment | treated_unit), df)
+# m7 but using treatment as a fixed factor within random units (varying slopes and intercept).
+m8 <- lmer(dif ~ treatment + time_treatment + (1 + treatment | treated_unit), df)
 
+# Make predicted values for each of the models.
+m4_pred <- m4 %>% 
+  augment(type.predict = "response")
+m5_pred <- m5 %>% 
+  augment(type.predict = "response")
+m6_pred <- m6 %>% 
+  augment(type.predict = "response")
+m7_pred <- m7 %>% 
+  augment(type.predict = "response")
+m8_pred <- m8 %>% 
+  augment(type.predict = "response")
+```
+
+```{r table, echo = FALSE, message = FALSE, error = FALSE}
+m5_fx <- fixef(m5)
+m5_rn <- ranef(m5)
+m8_fx <- fixef(m8)
+m8_rn <- ranef(m8)
+
+# Make a kable to print some of the model results.
+tibble(Model = c("Treatment w/ FEs for group, line, and demographics",
+                     "Treatment w/ train car random effects",
+                     "Treatment w/ varying treatment effects within train cars"),
+           Intercepts = c(m4$coefficients[1], m5_fx[1], m8_fx[1]),
+           Treatment = c(m4$coefficients[2],  m5_fx[2], m8_fx[2])) %>% 
+  kable(format = "latex", caption = "Logistic regressions of treatment on conservative shift with fixed and mixed effects") %>% 
+  kable_styling(full_width = FALSE)
+```
+
+```{r chart, echo = FALSE, message = FALSE, error = FALSE}
+# Choose some colors.
+c <- brewer.pal(5, "Dark2")
+
+# Plot a few of the predicted values from the models.
+ggplot(df, aes(treatment, dif)) + 
+  geom_jitter(width = 0, height = 0.05, alpha = 0.5) +
+  geom_line(data = m4_pred, aes(treatment, .fitted), col = c[1]) +
+  geom_line(data = m5_pred, aes(treatment, .fitted), col = c[2]) +
+  geom_line(data = m6_pred, aes(treatment, .fitted), col = c[3]) +
+  geom_line(data = m7_pred, aes(treatment, .fitted), col = c[4]) +
+  geom_line(data = m8_pred, aes(treatment, .fitted), col = c[5]) +
+  facet_wrap(~time_treatment) +
+  labs(y = "Conservative shift", x = "Treatment") +
+  theme(text=element_text(family = "LM Roman 10"), panel.background = element_blank())
 
 ```
 
