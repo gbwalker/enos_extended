@@ -1,0 +1,71 @@
+---
+title: "Causal Effect of Intergroup Contact on Exclusionary Attitudes Extension"
+# author: "Gabe Walker"
+# date: "February 26, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+library(lme4)
+library(broom)
+```
+
+```{r data, echo = FALSE, message = FALSE, error = FALSE}
+### This section reads in and cleans the primary results data.
+
+# Read in the full data and clean the names.
+df <- read_csv("pnas_data.csv") %>% 
+  clean_names() %>% 
+
+# Drop unnecessary variables.
+  select(-x1, -introcommu_x, -introcommu_y, -poli_id_x, -poli_id_y, -intoviews_x, -intoviews_y, -community_x, -community_y,
+         -welcome_y, -disclosure_y, -best_memor, -poli_id_y, -poli_id_x, -self_i_dintr, -a_time, -obama_voter_x,
+         -obama_voter_y, -romney_voter_x, -romney_voter_y) %>% 
+
+# Create outcome variables for "number of immigrants increased,"
+# "Children of undocumented be allowed to stay?", and "English as official language?".
+# A positive difference term means that the individual answered more conservatively
+# on the second survey.
+  mutate(dif_num = numberim_y - numberim_x,
+         dif_remain = remain_y - remain_x,
+         dif_english = englishlan_y - englishlan_x) %>% 
+
+# Create a binary outcome variable if overall the individual
+# was more conservative after.
+  mutate(dif = case_when(
+    dif_num + dif_remain + dif_english > 0 ~ 1,
+    TRUE ~ 0)
+    ) %>% 
+
+# Filter out the individuals without survey results.
+  filter(! is.na(dif_english)) %>% 
+  filter(! is.na(dif_remain)) %>% 
+  filter(! is.na(dif_num))
+```
+
+```{r lme, echo = FALSE, message = FALSE, error = FALSE}
+### This section makes logistic and lme models.
+
+# Logistic regressions for the effect of treatment on the overall binary
+# change in preferences.
+# Treatment alone.
+m1 <- glm(dif ~ treatment, df, family = binomial)
+# Treatment plus separated 3- and 10-day treatments.
+m2 <- glm(dif ~ treatment + time_treatment, df, family = binomial)
+# m2 plus line fixed effect.
+m3 <- glm(dif ~ treatment + time_treatment + line_y, df, family = binomial)
+# m3 plus various demographic dimensions.
+m4 <- glm(dif ~ treatment + time_treatment + line_y + obama_voter + romney_voter + male + ride_everyday + college, df, family = binomial)
+
+# Logistic mixed-effect models.
+# Treatment plus train car random effects.
+m5 <- lmer(dif ~ treatment + (1 | treated_unit), df)
+# m5 plus time fixed effects.
+m6 <- lmer(dif ~ treatment + time_treatment + (1 | treated_unit), df)
+
+
+```
+
