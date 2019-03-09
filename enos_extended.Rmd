@@ -20,6 +20,8 @@ Gabe Walker
 February 27, 2018
 \end{flushright}
 
+Brief intro/explanation would be really useful so the reader doesn't have to guess what you are doing
+
 ```{r data, echo = FALSE, message = FALSE, error = FALSE, warning = FALSE}
 ### This section reads in and cleans the primary results data.
 
@@ -83,6 +85,8 @@ m7 <- lmer(dif ~ treatment + time_treatment + (treatment | treated_unit), df)
 # m7 but using treatment as a fixed factor within random units (varying slopes and intercept).
 m8 <- lmer(dif ~ treatment + time_treatment + (1 + treatment | treated_unit), df)
 
+# great use of lmer, no one else used this at all
+
 # Make predicted values for each of the models.
 m4_pred <- m4 %>% 
   augment(type.predict = "response")
@@ -129,4 +133,6 @@ ggplot(df, aes(treatment, dif)) +
   theme(text=element_text(family = "LM Roman 10"), panel.background = element_blank())
 
 ```
+
+Cool replication and nice looking plot. For future extensions I would recommend talking a little about your extension. Why did you choose to do what you did? What does it show? What are the advantages/disadvantages of this method over the one's used by the author? How does it help you or the reader better understand the results presented in the original paper? The extension is your opportunity to show us what you've learned in the class and how to apply it, so tell us what you're thinking.
 
